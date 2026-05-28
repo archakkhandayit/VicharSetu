@@ -14,13 +14,13 @@ export default defineConfig(({mode}) => {
       react(),
       babel({ presets: [reactCompilerPreset()] })
     ],
-    server: {
-      proxy: {
-        '/api': {
-          target: env.VITE_SERVER_URL,
-          changeOrigin: true,
-        }
-      }
-    }
+    // server: {
+    //   proxy: {
+    //     '/api': {
+    //       target: env.VITE_SERVER_URL,
+    //       changeOrigin: true,
+    //     }
+    //   }
+    // }
   }
 })
