@@ -231,3 +231,39 @@ export const publishPollResults = async (req, res) => {
         });
     }
 };
+
+export const deletePoll = async (req, res) => {
+    try {
+        const { pollId } = req.params;
+
+        // Find poll
+        const poll = await Poll.findById(pollId);
+
+        if (!poll) {
+            return res.status(404).json({
+                message: "Poll not found",
+            });
+        }
+
+        // Optional: Only creator can delete
+        if (poll.createdBy.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                message: "Unauthorized to delete this poll",
+            });
+        }
+
+        // Delete all related options
+        await Option.deleteMany({ pollId });
+
+        // Delete poll
+        await Poll.findByIdAndDelete(pollId);
+
+        res.status(200).json({
+            message: "Poll deleted successfully",
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+};

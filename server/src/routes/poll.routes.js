@@ -6,7 +6,8 @@ import {
     createPoll,
     getPublicPoll,
     getMyPolls,
-    publishPollResults
+    publishPollResults,
+    deletePoll
 } from "../controllers/poll.controller.js";
 
 const router = express.Router();
@@ -18,5 +19,7 @@ router.get("/me", protect, getMyPolls);
 router.get("/public/:publicLink", getAuth, getPublicPoll);
 
 router.patch("/:pollId/publish", protect, publishPollResults);
+
+router.delete("/:pollId", protect, deletePoll)
 
 export default router;
