@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@theme {
+  /* colors */
+  --color-ink: #1a1814;
+  --color-ink-soft: #3d3a35;
+  --color-ink-muted: #7a7570;
+  --color-ink-faint: #b8b4af;
+
+  --color-paper: #f5f2ed;
+  --color-paper-warm: #ede9e2;
+  --color-paper-border: #ddd9d3;
+
+  --color-amber: #c4621a;
+  --color-amber-light: #f5e8dc;
+  --color-amber-hover: #a85216;
+  --color-amber-faint: #fbf3ec;
+
+  --color-surface: #ffffff;
+
+  /* fonts */
+  --font-sans: "DM Sans", sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "DM Mono", monospace;
+
+  /* font sizes */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+
+  --text-base: 14px;
+  --text-base--line-height: 22px;
+
+  --text-md: 15px;
+  --text-md--line-height: 22px;
+
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+
+  --text-2xl: 22px;
+  --text-2xl--line-height: 30px;
+
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
+
+  --text-4xl: 36px;
+  --text-4xl--line-height: 42px;
+
+  --text-5xl: 48px;
+  --text-5xl--line-height: 54px;
+
+  /* radius */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    background-color: #f5f2ed;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+
+  ::selection {
+    background-color: #c4621a22;
+    color: #1a1814;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(196, 98, 26, 0.2);
+    border-radius: 4px;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-amber text-white font-sans text-sm font-medium px-4 py-2 rounded transition-all duration-150 hover:bg-amber-hover active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-ink-muted font-sans text-sm font-medium px-4 py-2 rounded border border-paper-border transition-all duration-150 hover:bg-paper-warm hover:text-ink active:scale-95;
+  }
+
+  .btn-danger {
+    @apply bg-transparent text-red-600 font-sans text-sm font-medium px-4 py-2 rounded border border-red-200 transition-all duration-150 hover:bg-red-50 active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full bg-white border border-paper-border rounded-md px-3 py-2 text-sm text-ink placeholder-ink-faint transition-all duration-150 focus:outline-none focus:border-amber focus:ring-0;
+    box-shadow: none;
+  }
+
+  .input-field:focus {
+    box-shadow: 0 0 0 3px rgba(196, 98, 26, 0.12);
+  }
+
+  .card {
+    @apply bg-white rounded-lg border border-paper-border;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full;
+  }
+
+  .pill-live {
+    @apply inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-amber-faint text-amber border border-amber/20;
+  }
+
+  .pill-draft {
+    @apply inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-paper text-ink-faint border border-paper-border;
+  }
+
+  .pill-published {
+    @apply inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200;
+  }
+
+  .pill-expired {
+    @apply inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-200;
+  }
+
+  .divider {
+    @apply border-t border-paper-border;
+  }
+
+  .stat-number {
+    @apply font-serif text-4xl text-ink;
+  }
+}
+
+@layer utilities {
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .opacity-0-init {
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+}
