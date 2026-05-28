@@ -66,98 +66,74 @@ export const getPublicPoll = async (req, res) => {
 
         const poll = await Poll.findOne({ publicLink });
 
-        const user = req.user || null;
-
         if (!poll) {
             return res.status(404).json({
                 message: "Poll not found",
             });
         }
 
-        // check expiry
-        if (isPollExpired(poll.expiresAt)) {
-            return res.status(400).json({
-                message: "Poll has expired",
-            })
+        const user = req.user || null;
+
+        // AUTH CHECK FIRST (safe)
+        if (poll.responseMode === "authenticated" && !user) {
+            return res.status(401).json({
+                message: "Login required to access this poll",
+            });
         }
 
-        // CHECK AUTH REQUIREMENT
-        if (poll.responseMode === "authenticated") {
-
-            if (!user) {
-                return res.status(401).json({
-                    message:
-                        "Login required to access this poll",
-                });
-            }
-        }
-
-        const options = await Option.find({
-            pollId: poll._id,
-        });
-
-        // IF RESULTS PUBLISHED
+        // IF RESULTS ARE PUBLISHED → IGNORE EXPIRY
         if (poll.isPublished) {
-            const analytics =
-                await Response.aggregate([
-                    {
-                        $match: {
-                            pollId: poll._id,
-                        },
+            const options = await Option.find({ pollId: poll._id });
+
+            const analytics = await Response.aggregate([
+                { $match: { pollId: poll._id } },
+                {
+                    $group: {
+                        _id: "$selectedOptionId",
+                        votes: { $sum: 1 },
                     },
+                },
+            ]);
 
-                    {
-                        $group: {
-                            _id: "$selectedOptionId",
-                            votes: {
-                                $sum: 1,
-                            },
-                        },
-                    },
-                ]);
+            const results = options.map((option) => {
+                const matched = analytics.find(
+                    (item) => item._id.toString() === option._id.toString()
+                );
 
-            const results = options.map(
-                (option) => {
-                    const matched =
-                        analytics.find(
-                            (item) =>
-                                item._id.toString() ===
-                                option._id.toString()
-                        );
+                const votes = matched ? matched.votes : 0;
 
-                    const votes = matched
-                        ? matched.votes
+                const percentage =
+                    poll.totalResponses > 0
+                        ? ((votes / poll.totalResponses) * 100).toFixed(1)
                         : 0;
 
-                    const percentage =
-                        poll.totalResponses > 0
-                            ? (
-                                (votes /
-                                    poll.totalResponses) *
-                                100
-                            ).toFixed(1)
-                            : 0;
-
-                    return {
-                        optionId: option._id,
-                        optionText:
-                            option.optionText,
-                        votes,
-                        percentage,
-                    };
-                }
-            );
+                return {
+                    optionId: option._id,
+                    optionText: option.optionText,
+                    votes,
+                    percentage,
+                };
+            });
 
             return res.status(200).json({
                 type: "results",
                 poll,
-                totalResponses:poll.totalResponses,
+                totalResponses: poll.totalResponses,
                 results,
             });
         }
 
+        // ONLY NOW check expiry for ACTIVE poll view
+        if (isPollExpired(poll.expiresAt)) {
+            return res.status(400).json({
+                message: "Poll has expired",
+            });
+        }
+
         // normal poll response
-        res.status(200).json({
+        const options = await Option.find({ pollId: poll._id });
+
+        return res.status(200).json({
             type: "poll",
             poll,
             options,
