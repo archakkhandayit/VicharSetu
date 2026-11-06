@@ -8,7 +8,7 @@ import useAuthStore from '../store/authStore.js'
 
 // ─── Sub-views ────────────────────────────────────────────────────────────────
 
-function VoteView({ poll, options }) {
+function VoteView({ poll, options, onVoteSuccess }) {
   const { user } = useAuthStore()
   const [selected, setSelected] = useState(null)
   const [submitted, setSubmitted] = useState(false)
@@ -21,6 +21,9 @@ function VoteView({ poll, options }) {
       await submitResponse(poll._id, { selectedOptionId: selected })
       setSubmitted(true)
       toast.success('Vote submitted!')
+      if (onVoteSuccess) {
+        onVoteSuccess()
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not submit vote')
     } finally {
@@ -31,8 +34,8 @@ function VoteView({ poll, options }) {
   if (submitted) {
     return (
       <div className="text-center py-16 animate-scale-in">
-        <div className="w-12 h-12 rounded-full bg-amber-faint border border-amber/20 flex items-center justify-center mx-auto mb-4">
-          <span className="text-amber text-xl">✓</span>
+        <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+          <span className="text-emerald-600 text-xl font-bold">✓</span>
         </div>
         <h2 className="font-serif text-2xl text-ink mb-2">Vote recorded</h2>
         <p className="text-sm text-ink-muted">Results will be shared when the poll closes.</p>
@@ -75,7 +78,7 @@ function VoteView({ poll, options }) {
         Submit vote
       </Button>
 
-      {!user && poll.isAnonymousAllowed && (
+      {!user && poll.responseMode === 'public' && (
         <p className="text-center text-xs text-ink-faint mt-3">
           Voting anonymously ·{' '}
           <Link to="/login" className="text-amber hover:underline">
@@ -84,6 +87,30 @@ function VoteView({ poll, options }) {
           to track your votes
         </p>
       )}
+    </div>
+  )
+}
+
+function AlreadyVotedView({ options, selectedOptionId }) {
+  const selectedOpt = options?.find((opt) => opt._id === selectedOptionId)
+
+  return (
+    <div className="text-center py-12 animate-scale-in">
+      <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+        <span className="text-emerald-600 text-xl font-bold">✓</span>
+      </div>
+      <h2 className="font-serif text-2xl text-ink mb-2">Vote recorded</h2>
+      <p className="text-sm text-ink-muted mb-4">
+        You have already voted in this poll.
+      </p>
+      {selectedOpt && (
+        <div className="inline-block px-4 py-2 bg-paper-warm rounded-lg text-xs font-medium text-ink mb-4">
+          Your choice: <span className="text-amber font-semibold">{selectedOpt.optionText}</span>
+        </div>
+      )}
+      <p className="text-xs text-ink-faint">
+        Final results will appear here once voting closes or results are published.
+      </p>
     </div>
   )
 }
@@ -125,21 +152,22 @@ export default function PublicPollPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await getPublicPoll(publicLink)
-        setData(res.data)
-      } catch (err) {
-        setError({
-          status: err.response?.status,
-          message: err.response?.data?.message || 'Something went wrong',
-        })
-      } finally {
-        setLoading(false)
-      }
+  const fetchPoll = async () => {
+    try {
+      const res = await getPublicPoll(publicLink)
+      setData(res.data)
+    } catch (err) {
+      setError({
+        status: err.response?.status,
+        message: err.response?.data?.message || 'Something went wrong',
+      })
+    } finally {
+      setLoading(false)
     }
-    fetch()
+  }
+
+  useEffect(() => {
+    fetchPoll()
   }, [publicLink])
 
   if (loading) {
@@ -201,6 +229,12 @@ export default function PublicPollPage() {
                 Results published
               </span>
             )}
+            {type === 'already_voted' && (
+              <span className="inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Vote submitted
+              </span>
+            )}
             {type === 'poll' && (
               <span className="inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-full bg-amber-faint text-amber border border-amber/20 mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
@@ -218,7 +252,21 @@ export default function PublicPollPage() {
 
           <div className="divider mb-8" />
 
-          {type === 'poll' && <VoteView poll={poll} options={data.options} />}
+          {type === 'poll' && (
+            <VoteView
+              poll={poll}
+              options={data.options}
+              onVoteSuccess={fetchPoll}
+            />
+          )}
+
+          {type === 'already_voted' && (
+            <AlreadyVotedView
+              options={data.options}
+              selectedOptionId={data.selectedOptionId}
+            />
+          )}
+
           {type === 'results' && (
             <ResultsView results={data.results} totalResponses={data.totalResponses} />
           )}

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../components/layout/Navbar'
 import Button from '../components/ui/Button'
 import StatusPill from '../components/ui/StatusPill'
-import { getPollAnalytics, publishPollResults, deletePoll } from '../services/api.js'
+import { getPollAnalytics, publishPollResults } from '../services/api.js'
+import socket from '../services/socket.js'
 import { formatDate, getPollUrl, copyToClipboard } from '../utils/helpers.js'
 
 export default function AnalyticsPage() {
@@ -13,6 +14,7 @@ export default function AnalyticsPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [publishing, setPublishing] = useState(false)
+  const [isLive, setIsLive] = useState(() => socket.connected)
 
   useEffect(() => {
     const fetch = async () => {
@@ -27,7 +29,74 @@ export default function AnalyticsPage() {
       }
     }
     fetch()
-  }, [pollId])
+
+    // Socket real-time events
+    const onConnect = () => setIsLive(true)
+    const onDisconnect = () => setIsLive(false)
+
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+
+    // Scoped connection: connect only while viewing Analytics
+    socket.connect()
+    socket.emit('join_poll', pollId)
+
+    const handleUpdate = (payload) => {
+      // Handles lean delta payload ({ totalResponses, votes: { [optionId]: count } })
+      if (payload && payload.votes) {
+        setData((prev) => {
+          if (!prev) return prev
+          const updatedTotal =
+            payload.totalResponses !== undefined
+              ? payload.totalResponses
+              : prev.poll.totalResponses
+          const updatedResults = prev.results.map((r) => ({
+            ...r,
+            votes:
+              payload.votes[r.optionId] !== undefined
+                ? payload.votes[r.optionId]
+                : r.votes,
+          }))
+          return {
+            ...prev,
+            poll: {
+              ...prev.poll,
+              totalResponses: updatedTotal,
+            },
+            results: updatedResults,
+          }
+        })
+      } else if (payload?.poll?._id === pollId) {
+        // Fallback for full payload
+        setData(payload)
+      }
+    }
+
+    const handleSocketError = (err) => {
+      if (err?.code === 'FORBIDDEN' || err?.code === 'UNAUTHORIZED') {
+        setIsLive(false)
+      }
+    }
+
+    const handleStaticPoll = () => {
+      setIsLive(false)
+    }
+
+    socket.on('poll_analytics_updated', handleUpdate)
+    socket.on('error', handleSocketError)
+    socket.on('poll_static', handleStaticPoll)
+
+    return () => {
+      socket.emit('leave_poll', pollId)
+      socket.off('poll_analytics_updated', handleUpdate)
+      socket.off('error', handleSocketError)
+      socket.off('poll_static', handleStaticPoll)
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+      // Disconnect socket immediately upon leaving analytics page to release server resources
+      socket.disconnect()
+    }
+  }, [pollId, navigate])
 
   const handlePublish = async () => {
     if (!window.confirm('Publish results? Voting will close and results will be visible to everyone at the poll link.')) return
@@ -81,7 +150,15 @@ export default function AnalyticsPage() {
           </button>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs text-ink-faint uppercase tracking-widest mb-1">Analytics</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-ink-faint uppercase tracking-widest">Analytics</p>
+                {isLive && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-2xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
               <h1 className="font-serif text-3xl text-ink leading-tight">{poll.title}</h1>
               <p className="font-serif text-lg text-ink-muted italic mt-1">"{poll.questionText}"</p>
             </div>

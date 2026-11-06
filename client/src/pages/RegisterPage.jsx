@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { register } from '../services/api'
@@ -8,7 +8,13 @@ import Button from '../components/ui/Button'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const setAuth = useAuthStore((s) => s.setAuth)
+  const { user, setAuth } = useAuthStore()
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, navigate])
 
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
@@ -29,7 +35,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const res = await register(form)
-      setAuth(res.data.token, res.data.user)
+      setAuth(res.data.user)
       toast.success('Account created!')
       navigate('/dashboard')
     } catch (err) {

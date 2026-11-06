@@ -1,30 +1,34 @@
-import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
-import verifyToken from "../utils/verifyToken.js";
+import { verifyAccessToken } from "../utils/token.utils.js";
 
-const protect = async (req, res, next) => {
+const extractAccessToken = (req) => {
+  // 1. Primary: HttpOnly cookie
+  if (req.cookies?.accessToken) {
+    return req.cookies.accessToken;
+  }
+
+  // 2. Fallback: Authorization Bearer header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
+
+  return null;
+};
+
+export const protect = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractAccessToken(req);
 
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ")
-    ) {
+    if (!token) {
       return res.status(401).json({
-        message: "Unauthorized",
+        message: "Unauthorized: Access token missing",
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    const decoded = verifyAccessToken(token);
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
-    const user = await User.findById(
-      decoded.userId
-    );
+    const user = await User.findById(decoded.userId);
 
     if (!user) {
       return res.status(401).json({
@@ -33,55 +37,35 @@ const protect = async (req, res, next) => {
     }
 
     req.user = user;
-
     next();
   } catch (error) {
-    res.status(401).json({
-      message: "Unauthorized",
+    return res.status(401).json({
+      message: "Unauthorized: Invalid or expired access token",
+      expired: error.name === "TokenExpiredError",
     });
   }
 };
 
-
-const getAuth = async (req, res, next) => {
+export const getAuth = async (req, res, next) => {
   try {
-    const authHeader =
-      req.headers.authorization;
+    const token = extractAccessToken(req);
 
-    // NO TOKEN
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ")
-    ) {
+    if (!token) {
       req.user = null;
-
       return next();
     }
 
-    const token = authHeader.split(" ")[1];
+    const decoded = verifyAccessToken(token);
 
-    let user;
-
-    const decoded = await verifyToken(token);
-
-
+    let user = null;
     if (decoded?.userId) {
-      user = await User.findById(
-        decoded.userId
-      );
+      user = await User.findById(decoded.userId);
     }
 
     req.user = user || null;
-
     next();
   } catch (error) {
     req.user = null;
-
     next();
   }
 };
-
-export {
-  protect,
-  getAuth
-}

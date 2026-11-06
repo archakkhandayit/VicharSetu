@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import StatusPill from '../ui/StatusPill'
@@ -109,7 +109,8 @@ export default function PollCard({ poll, onUpdate, onDelete }) {
             size="sm"
             loading={publishing}
             onClick={handlePublish}
-            disabled={publishing}
+            disabled={publishing || !canPublish}
+            title={!canPublish ? 'Cannot publish a live poll with 0 responses' : ''}
           >
             Publish results
           </Button>

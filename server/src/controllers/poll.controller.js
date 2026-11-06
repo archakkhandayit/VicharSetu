@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 import Poll from "../models/poll.model.js";
 import Option from "../models/option.model.js";
@@ -133,10 +134,49 @@ export const getPublicPoll = async (req, res) => {
         // normal poll response
         const options = await Option.find({ pollId: poll._id });
 
+        // Check if current authenticated user or anonymous visitor has already voted
+        let existingVote = null;
+        if (user) {
+            existingVote = await Response.findOne({
+                pollId: poll._id,
+                userId: user._id,
+            });
+        } else {
+            const voterToken = req.cookies?.anon_voter_id;
+            if (voterToken) {
+                existingVote = await Response.findOne({
+                    pollId: poll._id,
+                    voterToken,
+                });
+            } else {
+                // Initialize anonymous voter cookie on first visit
+                const newVoterId = crypto.randomUUID();
+                const isProd = process.env.NODE_ENV === "production";
+                res.cookie("anon_voter_id", newVoterId, {
+                    httpOnly: true,
+                    maxAge: 90 * 24 * 60 * 60 * 1000,
+                    secure: isProd,
+                    sameSite: isProd ? "none" : "lax",
+                    path: "/",
+                });
+            }
+        }
+
+        if (existingVote) {
+            return res.status(200).json({
+                type: "already_voted",
+                poll,
+                options,
+                hasVoted: true,
+                selectedOptionId: existingVote.selectedOptionId,
+            });
+        }
+
         return res.status(200).json({
             type: "poll",
             poll,
             options,
+            hasVoted: false,
         });
     } catch (error) {
         res.status(500).json({
@@ -228,8 +268,9 @@ export const deletePoll = async (req, res) => {
             });
         }
 
-        // Delete all related options
+        // Cascade delete related options and responses
         await Option.deleteMany({ pollId });
+        await Response.deleteMany({ pollId });
 
         // Delete poll
         await Poll.findByIdAndDelete(pollId);

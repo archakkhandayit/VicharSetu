@@ -1,37 +1,48 @@
 import { create } from 'zustand'
-import { getMe } from '../services/api'
+import { getMe, logoutApi } from '../services/api'
+
+// Clean up any legacy localStorage token from previous builds
+if (typeof window !== 'undefined') {
+  localStorage.removeItem('pb_token')
+}
 
 const useAuthStore = create((set, get) => ({
   user: null,
-  token: localStorage.getItem('pb_token') || null,
   loading: true,
 
-  setAuth: (token, user) => {
-    localStorage.setItem('pb_token', token)
-    set({ token, user, loading: false })
+  setAuth: (arg1, arg2) => {
+    const user = arg2 || arg1
+    set({ user, loading: false })
   },
 
-  logout: () => {
-    localStorage.removeItem('pb_token')
-    set({ token: null, user: null, loading: false })
+  logout: async () => {
+    try {
+      await logoutApi()
+    } catch {
+      // Ignore network errors on logout
+    }
+    set({ user: null, loading: false })
   },
 
   fetchMe: async () => {
-    const token = localStorage.getItem('pb_token')
-    if (!token) {
-      set({ loading: false })
-      return
-    }
     try {
       const res = await getMe()
       set({ user: res.data, loading: false })
     } catch {
-      localStorage.removeItem('pb_token')
-      set({ token: null, user: null, loading: false })
+      set({ user: null, loading: false })
     }
   },
 
-  isAuthenticated: () => !!get().token,
+  isAuthenticated: () => !!get().user,
 }))
+
+// Global listener for session expiry from axios interceptor
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth_session_expired', () => {
+    if (useAuthStore.getState().user) {
+      useAuthStore.setState({ user: null, loading: false })
+    }
+  })
+}
 
 export default useAuthStore
